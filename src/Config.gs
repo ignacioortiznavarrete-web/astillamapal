@@ -11,7 +11,9 @@ var Config = (function () {
       ['date','supplier','product'].concat(s.kind==='sap'?['tonnes']:[]).forEach(function(k){if(!s.columns[k]) throw new Error('Falta columna '+k);});
     });
     if (storeId && sources.some(function(s){return s.id===storeId;})) throw new Error('La base procesada debe ser independiente de todas las fuentes.');
-    return {sources:sources, storeId:storeId};
+    var suppliers = JSON.parse(p.getProperty('SUPPLIERS_JSON') || '[]');
+    Suppliers.build(suppliers);
+    return {sources:sources, storeId:storeId, suppliers:suppliers};
   }
   return {read:read};
 })();

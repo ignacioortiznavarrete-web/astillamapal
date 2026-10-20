@@ -1,7 +1,7 @@
 # Validación de la implementación
 
 - `npm ci --ignore-scripts`: instalación reproducible con lockfile completada.
-- `npm test`: 17 pruebas aprobadas, ninguna omitida. Promedios por proveedor, respaldo 11,5, filtros, productos, deduplicación, conciliación, conflictos, fechas y bloqueo de destino fuente.
+- `npm test`: 22 pruebas aprobadas, ninguna omitida. Promedios por proveedor, respaldo 11,5, filtros, productos, deduplicación, conciliación, conflictos, fechas y bloqueo de destino fuente.
 - `npm run check`: sintaxis de módulos `.gs`, JavaScript cliente y manifiesto válida.
 - `npm run clasp -- --version`: 3.1.3.
 - Servidor de demostración: respuesta HTTP 200 y plantilla con estilos y cliente incluidos, sin etiquetas de inclusión pendientes.
@@ -15,3 +15,5 @@
 - Escritura: no se hizo ninguna escritura externa. El bloqueo de un destino igual a una fuente se probó con servicios simulados.
 
 La demostración usa datos ficticios. La validación productiva y conciliación con SAP requieren completar las instrucciones de README.md. No hay evidencia todavía para afirmar que el dashboard funciona con las planillas reales.
+
+Homologación: pruebas con variantes de nombre, promedio compartido entre alias, filtro oficial, alerta de nombres desconocidos y rechazo de alias ambiguos. La comparación contra plan permanece pendiente de definición de fuente y unidad.

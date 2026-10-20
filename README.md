@@ -79,3 +79,20 @@ Para tareas futuras usar este checkout existente: no crear worktrees. La aplicac
 Configurar `columns.guide` como `N° DE GUÍA` y `columns.supplier` como `PROVEEDOR` en ambas fuentes. Se normalizan acentos, mayúsculas y espacios; una guía vacía o proveedor vacío excluye la fila y genera una alerta. `columns.id` sigue disponible para compatibilidad con configuraciones anteriores, pero si existe `guide` prevalece la clave compuesta. `PESO BRUTO` no debe mapearse como toneladas netas SAP. Falta confirmar esa columna, los nombres de pestañas y las filas de encabezados.
 
 Los camiones pendientes se vinculan a los antecedentes SAP **solo por PROVEEDOR para obtener su promedio**. No necesitan compartir una guía con SAP para estimar toneladas. Proveedor + guía se usa exclusivamente para identificar/deduplicar recepciones y reconocer un camión ya contabilizado; compartir proveedor no implica estar contabilizado.
+
+## Homologación por proveedor
+
+Agregar en Propiedades del script `SUPPLIERS_JSON` con una lista de nombres oficiales y sus variantes. Ejemplo **ficticio**, reemplazar por los nombres reales:
+
+```json
+[
+  {
+    "name": "FORESTAL SUR",
+    "aliases": ["F. Sur Ltda.", "FORESTAL SUR LIMITADA"]
+  }
+]
+```
+
+La homologación se aplica antes de calcular promedios, agrupar, filtrar y conciliar. El nombre oficial aparece en dashboard y base procesada. El nombre original se conserva en los registros devueltos como `supplierOriginal`. Una misma variante asignada a dos proveedores bloquea la operación. Los proveedores sin homologar se mantienen separados y generan alertas; esto también bloquea guardar procesados hasta revisar el maestro. No se adivinan equivalencias por semejanza de nombres.
+
+El objetivo es comparar ingresos por proveedor con el plan. **La comparación con plan aún no está implementada**: falta conocer su fuente, columnas, período y unidad (toneladas o camiones). No se calcula un porcentaje de cumplimiento sin esos datos. Agrupar por proveedor no convierte recepciones pendientes en contabilizadas: proveedor + guía se conserva como identidad de cada camión.

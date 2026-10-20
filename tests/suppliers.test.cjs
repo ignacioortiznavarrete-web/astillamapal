@@ -1,0 +1,8 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');const c=vm.createContext({});for(const f of ['Domain','Suppliers'])vm.runInContext(fs.readFileSync('src/'+f+'.gs','utf8'),c);
+const master=[{name:'FORESTAL SUR',aliases:['F. Sur Ltda.','FORESTAL SUR LIMITADA']}];
+const row=(supplier,guide,tonnes)=>({supplier,guide,tonnes,date:'2026-10-20',product:'ASTILLA VERDE'});
+test('promedio por proveedor homologado para guías pendientes diferentes',()=>{const r=c.Suppliers.calculate({receipts:[row('F. Sur Ltda.','2')],sap:[row('FORESTAL SUR LIMITADA','1',14)]},master,{});assert.equal(r.kpis.estimated,14);assert.equal(r.kpis.pending,1);assert.equal(r.groups.length,1);assert.equal(r.warnings.length,0);});
+test('conciliación por guía ocurre después de homologar proveedor',()=>{const r=c.Suppliers.calculate({receipts:[row('F. Sur Ltda.','1')],sap:[row('FORESTAL SUR LIMITADA','1',14)]},master,{});assert.equal(r.kpis.pending,0);assert.equal(r.kpis.trucks,1);});
+test('sin homologar mantiene nombre y alerta, sin coincidencias aproximadas',()=>{const r=c.Suppliers.calculate({receipts:[row('FORESTAL SURESTE','2')],sap:[row('FORESTAL SUR','1',14)]},master,{});assert.equal(r.kpis.estimated,11.5);assert.equal(r.unmappedSuppliers[0],'FORESTAL SURESTE');assert.equal(r.warnings.length,1);});
+test('alias ambiguo bloquea operación',()=>{assert.throws(()=>c.Suppliers.build([{name:'A',aliases:['X']},{name:'B',aliases:['x']}]),/dos proveedores/);});
+test('filtro por nombre oficial incluye los alias',()=>{const r=c.Suppliers.calculate({receipts:[row('F. Sur Ltda.','2')],sap:[]},master,{supplier:'FORESTAL SUR'});assert.equal(r.kpis.trucks,1);});
