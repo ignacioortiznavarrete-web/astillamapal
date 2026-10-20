@@ -75,5 +75,5 @@ var Domain = (function () {
     return {rows:rows, suppliers:Array.from(new Set(all.map(function(r){return r.supplier;}))).sort(), groups:Object.keys(groups).map(function(k){return groups[k];}), warnings:warnings, averages:averages,
       kpis:{trucks:rows.length, pending:rows.filter(function(r){return r.status==='ESTIMADO';}).length, estimated:rows.reduce(function(s,r){return s+(r.status==='ESTIMADO'?r.tonnes:0);},0), sap:rows.reduce(function(s,r){return s+(r.status==='SAP'?r.tonnes:0);},0)}};
   }
-  return {calculate:calculate, key:key, tonnes:tonnes, receptionId:receptionId};
+  return {calculate:calculate, key:key, tonnes:tonnes, receptionId:receptionId, validDate:validDate};
 })();
