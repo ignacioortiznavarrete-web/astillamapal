@@ -1,0 +1,56 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
+const {createServer}=require('./preview.cjs');
+(async()=>{
+  const server=createServer();await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  let browser;
+  try{
+    const executablePath=process.env.CHROMIUM_PATH||(fs.existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined);
+    browser=await chromium.launch({executablePath,headless:true,args:['--no-sandbox']});
+    const page=await browser.newPage({viewport:{width:1440,height:1100}}),errors=[];
+    page.on('pageerror',e=>errors.push(e.message));
+    await page.goto('http://127.0.0.1:'+server.address().port,{waitUntil:'networkidle'});
+    await page.waitForFunction(()=>document.querySelector('#trucks').textContent==='27');
+    assert.equal(await page.evaluate(()=>Object.keys(Chart.instances).length),4);
+    assert.equal(await page.locator('#pending').innerText(),'11');
+    assert.notEqual(await page.locator('#compliance').innerText(),'—');
+    await page.screenshot({path:path.join(os.tmpdir(),'astilla-mapal-desktop.png'),fullPage:true});
+    await page.selectOption('#supplier','TRANSPORTES EL ARRAYAN');await page.click('#apply');
+    assert.equal(await page.locator('#estimated').innerText(),'34,5');
+    await page.fill('#search','20040');assert.equal(await page.locator('#rows tr').count(),1);
+    await page.fill('#search','');
+    await page.selectOption('#product','ASTILLA VERDE C/CORT');await page.click('#apply');
+    assert.equal(await page.locator('#trucks').innerText(),'0');assert.match(await page.locator('#rows').innerText(),/No hay ingresos/);
+    await page.setViewportSize({width:390,height:844});await page.waitForTimeout(350);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    await page.screenshot({path:path.join(os.tmpdir(),'astilla-mapal-mobile.png'),fullPage:true});
+    const downloadEvent=page.waitForEvent('download');await page.click('#export');const download=await downloadEvent;
+    assert.match(download.suggestedFilename(),/astilla-mapal/);
+    assert.deepEqual(errors,[]);
+    // Exercise automatic refresh against the real server modules with simulated Google Sheets.
+    const m=require('../tests/helpers/machine.cjs')(),c=m.context;
+    c.configurarProyecto();
+    const month=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit'}).format(new Date());
+    const receipts=m.book(c.Setup.sourceIds[1]),sap=m.book(c.Setup.sourceIds[0]),base=m.books.get(m.props.PROCESSED_SPREADSHEET_ID);
+    m.put(receipts,'RECEPCIONES',[['FECHA','PROVEEDOR','PRODUCTO','N° DE GUÍA'],[month+'-20','A','ASTILLA VERDE','1']]);
+    const sapSheet=m.put(sap,'Ingresos Sap',[['REPORTE'],['Fecha de contabilización','PROVEEDOR','PRODUCTO','N° DE GUÍA','Cantidad'],[month+'-20','A','ASTILLA VERDE','2',14]]);
+    m.put(base,'PROVEEDORES',[Array.from(c.Setup.schemas.PROVEEDORES),['A','A']]);
+    c.prepararProyecto();
+    const live=await browser.newPage();
+    await live.exposeFunction('__dashboard',filters=>JSON.parse(JSON.stringify(c.getDashboard(filters))));
+    await live.addInitScript(()=>{window.__reads=0;window.google={script:{get run(){let success,failure;return {withSuccessHandler(f){success=f;return this;},withFailureHandler(f){failure=f;return this;},getDashboard(filters){window.__reads++;window.__dashboard(filters).then(success).catch(failure);}};}}};});
+    await live.clock.install();
+    await live.bringToFront();
+    await live.goto('http://127.0.0.1:'+server.address().port,{waitUntil:'networkidle'});
+    await live.waitForFunction(()=>document.querySelector('#sap').textContent==='14');
+    assert.equal(await live.evaluate(()=>document.hidden),false);
+    sapSheet.data[2][4]=18;
+    await live.clock.fastForward(61000);
+    for(let i=0;i<30&&await live.locator('#sap').innerText()!=='18';i++)await new Promise(resolve=>setTimeout(resolve,50));
+    assert.equal(await live.locator('#sap').innerText(),'18');
+    assert.equal(await live.locator('#estimated').innerText(),'18');
+    assert.ok(await live.evaluate(()=>window.__reads)>=2);
+    await live.uncheck('#auto');const reads=await live.evaluate(()=>window.__reads);
+    await live.clock.fastForward(61000);assert.equal(await live.evaluate(()=>window.__reads),reads);
+    console.log('Navegador OK: 8 KPIs, 4 gráficos, filtros, búsqueda, CSV, móvil y refresh automático con SAP simulado.');
+  }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
+})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -40,13 +40,6 @@ var Setup = (function () {
   function configure(){
     var lock=LockService.getScriptLock();lock.waitLock(10000);
     try {var book=base();
-      var sources=book.getSheetByName('FUENTES');
-      if(sources.getLastRow()===1){
-        sources.getRange(2,1,2,10).setValues([
-          ['NO','receipts',SOURCE_IDS[1],'COMPLETAR_PESTANA',1,'FECHA','PROVEEDOR','PRODUCTO','N° DE GUÍA',''],
-          ['NO','sap','CONFIRMAR_ID_SAP','COMPLETAR_PESTANA',1,'FECHA','PROVEEDOR','PRODUCTO','N° DE GUÍA','Cantidad']
-        ]);
-      }
       var result={baseId:book.getId(),url:book.getUrl(),sheets:Object.keys(SCHEMAS)};console.log(JSON.stringify(result));return result;}
     finally{lock.releaseLock();}
   }

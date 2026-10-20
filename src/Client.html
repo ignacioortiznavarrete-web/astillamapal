@@ -1,15 +1,168 @@
 <script>
-(()=>{'use strict';
-const $=id=>document.getElementById(id),fmt=new Intl.NumberFormat('es-CL',{maximumFractionDigits:2}),demo=!(window.google&&google.script),charts=[];
-let result=null,page=0,request=0;const size=50;
-function message(text,type='warning'){ $('message').textContent=text;$('message').className='alert alert-'+type;}
-function busy(value){$('apply').disabled=value;$('sync').disabled=value||demo;$('updated').textContent=value?'Consultando fuentes…':$('updated').textContent;}
-function filters(){return Object.fromEntries(['from','to','supplier','product'].map(k=>[k,$(k).value]));}
-function demoData(f){const base=[{id:'DEMO-001',date:'2026-10-20',supplier:'FORESTAL DEMOSTRACIÓN',product:'ASTILLA VERDE',tonnes:13.2,status:'SAP'},{id:'DEMO-002',date:'2026-10-20',supplier:'FORESTAL DEMOSTRACIÓN',product:'ASTILLA VERDE',tonnes:13.2,status:'ESTIMADO'},{id:'DEMO-003',date:'2026-10-19',supplier:'PROVEEDOR SIN SAP',product:'ASTILLA VERDE C/CORT',tonnes:11.5,status:'ESTIMADO',fallback:true}];const rows=base.filter(r=>(!f.from||r.date>=f.from)&&(!f.to||r.date<=f.to)&&(!f.supplier||r.supplier===f.supplier)&&(!f.product||r.product===f.product));const groups={};rows.forEach(r=>{const g=groups[r.supplier]||={supplier:r.supplier,estimated:0,sap:0,trucks:0};g.trucks++;g[r.status==='SAP'?'sap':'estimated']+=r.tonnes;});return {rows,groups:Object.values(groups),suppliers:[...new Set(base.map(r=>r.supplier))],warnings:[],updatedAt:new Date().toISOString(),kpis:{trucks:rows.length,pending:rows.filter(r=>r.status!=='SAP').length,estimated:rows.filter(r=>r.status!=='SAP').reduce((s,r)=>s+r.tonnes,0),sap:rows.filter(r=>r.status==='SAP').reduce((s,r)=>s+r.tonnes,0)}};}
-function table(){const rows=result.rows.slice(page*size,(page+1)*size);$('rows').replaceChildren();if(!rows.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=6;td.textContent='No hay ingresos para los filtros seleccionados.';tr.append(td);$('rows').append(tr);}rows.forEach(r=>{const tr=document.createElement('tr');[r.id,r.date,r.supplier,r.product,fmt.format(r.tonnes),r.status==='SAP'?'Contabilizado SAP':r.fallback?'Estimado · respaldo 11,5':'Estimado · promedio SAP'].forEach((v,i)=>{const td=document.createElement('td');td.textContent=v;if(i===4)td.className='text-end';if(i===5){const span=document.createElement('span');span.className='badge '+(r.status==='SAP'?'badge-sap':'badge-est');span.textContent=v;td.replaceChildren(span);}tr.append(td);});$('rows').append(tr);});const total=Math.max(1,Math.ceil(result.rows.length/size));$('page').textContent=`Página ${page+1} de ${total}`;$('prev').disabled=page===0;$('next').disabled=page+1>=total;}
-function monthly(data){const body=$('monthly');body.replaceChildren();const records=data.reports?data.reports.monthly:[];if(!records.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=8;td.textContent=demo?'Resumen real disponible al conectar las fuentes y cargar el plan.':'No hay ingresos ni plan para el período.';tr.append(td);body.append(tr);}records.forEach(r=>{const tr=document.createElement('tr');const percent=v=>v===null?'—':fmt.format(v)+' %';[r.month,r.supplier,r.product,fmt.format(r.sap),fmt.format(r.estimated),r.plan===null?'Sin plan':fmt.format(r.plan),r.partial?'Período parcial':percent(r.sapPercent),r.partial?'Período parcial':percent(r.projectedPercent)].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td);});body.append(tr);});}
-function render(data){monthly(data);result=data;page=0;for(const k of ['trucks','pending','estimated','sap'])$(k).textContent=fmt.format(data.kpis[k]);const selected=$('supplier').value;$('supplier').replaceChildren(new Option('Todos los proveedores',''));data.suppliers.forEach(s=>$('supplier').add(new Option(s,s)));$('supplier').value=selected;$('updated').textContent='Actualizado: '+new Date(data.updatedAt).toLocaleString('es-CL');$('count').textContent=data.rows.length+' registros';table();charts.forEach(c=>c.destroy());charts.length=0;if(window.Chart){charts.push(new Chart($('volumes'),{type:'bar',data:{labels:data.groups.map(g=>g.supplier),datasets:[{label:'Estimado (t)',data:data.groups.map(g=>g.estimated),backgroundColor:'#b7d88a'},{label:'SAP (t)',data:data.groups.map(g=>g.sap),backgroundColor:'#246344'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,title:{display:true,text:'Toneladas'}}}}}));charts.push(new Chart($('states'),{type:'doughnut',data:{labels:['Pendientes','SAP'],datasets:[{data:[data.kpis.pending,data.kpis.trucks-data.kpis.pending],backgroundColor:['#b7d88a','#246344']}]},options:{responsive:true,maintainAspectRatio:false}}));}else message('No se pudo cargar Chart.js. Los indicadores y la tabla siguen disponibles.');if(data.warnings.length)message(data.warnings.slice(0,15).join(' · '));else if(demo)message('DEMOSTRACIÓN: datos ficticios. La conexión con las planillas todavía no ha sido validada.','info');else $('message').className='d-none';}
-function load(){const f=filters();if(f.from&&f.to&&f.from>f.to){message('La fecha inicial debe ser anterior a la final.');return;}const current=++request;busy(true);if(demo){render(demoData(f));busy(false);return;}google.script.run.withSuccessHandler(d=>{if(current!==request)return;render(d);busy(false);}).withFailureHandler(e=>{if(current!==request)return;busy(false);$('updated').textContent='Consulta fallida; los valores anteriores pueden estar desactualizados.';message(e.message||'No fue posible consultar las fuentes.','danger');}).getDashboard(f);}
-$('filters').addEventListener('submit',e=>{e.preventDefault();load();});$('prev').onclick=()=>{page--;table();};$('next').onclick=()=>{page++;table();};$('sync').onclick=()=>{busy(true);google.script.run.withSuccessHandler(r=>{busy(false);message(`Base independiente actualizada: ${r.count} registros. La sincronización incluye todos los períodos configurados.`,'success');}).withFailureHandler(e=>{busy(false);message(e.message,'danger');}).syncProcessed();};$('mode').textContent=demo?'DEMOSTRACIÓN':'GOOGLE SHEETS · LECTURA';load();
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const fmt = new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 });
+  const demo = !(window.google && google.script);
+  const charts = [];
+  let result = null, page = 0, inFlight = false, request = 0;
+  const size = 50;
+  const number = value => value === null || value === undefined ? '—' : fmt.format(value);
+  const percent = value => value === null || value === undefined ? '—' : number(value) + ' %';
+  const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  function message(text, type = 'warning') {
+    $('message').textContent = text;
+    $('message').className = text ? 'alert alert-' + type : 'd-none';
+  }
+  function busy(value) {
+    inFlight = value;
+    ['apply', 'refresh'].forEach(id => $(id).disabled = value);
+    $('sync').disabled = value || demo;
+    $('export').disabled = value || !result;
+    document.querySelector('main').setAttribute('aria-busy',String(value));
+    $('refresh').textContent = value ? 'Consultando…' : '↻ Actualizar';
+    $('updated').classList.toggle('loading-dot', value);
+  }
+  function filters() { return Object.fromEntries(['from', 'to', 'supplier', 'product'].map(k => [k, $(k).value])); }
+  function demoData(f) {
+    const month = today().slice(0, 7), names = ['FORESTAL LOS ROBLES', 'MADERAS DEL SUR', 'BOSQUES DEL BIOBIO', 'FORESTAL CORDILLERA', 'TRANSPORTES EL ARRAYAN'];
+    const all = [];
+    names.forEach((supplier, i) => {
+      const weight = i === 4 ? 11.5 : 12.4 + i * 1.3;
+      const product = i % 2 ? 'ASTILLA VERDE C/CORT' : 'ASTILLA VERDE';
+      if (i < 4) for (let j = 0; j < 4; j++) all.push({ id: `D-${i}-${j}`, guide: `100${i}${j}`, date: month + '-' + String(2 + i * 3 + j).padStart(2, '0'), supplier, product, tonnes: weight, status: 'SAP' });
+      for (let j = 0; j < (i === 4 ? 3 : 2); j++) all.push({ id: `P-${i}-${j}`, guide: `200${i}${j}`, date: month + '-' + String(18 + j).padStart(2, '0'), supplier, product, tonnes: weight, status: 'ESTIMADO', fallback: i === 4 });
+    });
+    const rows = all.filter(r => (!f.from || r.date >= f.from) && (!f.to || r.date <= f.to) && (!f.supplier || r.supplier === f.supplier) && (!f.product || r.product === f.product)).sort((a, b) => b.date.localeCompare(a.date));
+    const groups = {}, daily = {};
+    rows.forEach(r => {
+      const g = groups[r.supplier] ||= { supplier: r.supplier, estimated: 0, sap: 0, trucks: 0 };
+      g.trucks++; g[r.status === 'SAP' ? 'sap' : 'estimated'] += r.tonnes;
+      const d = daily[r.date] ||= { date: r.date, sap: 0, estimated: 0 };
+      d[r.status === 'SAP' ? 'sap' : 'estimated'] += r.tonnes;
+    });
+    const monthly = names.map((supplier, i) => {
+      const product = i % 2 ? 'ASTILLA VERDE C/CORT' : 'ASTILLA VERDE';
+      if ((f.from && month < f.from.slice(0, 7)) || (f.to && month > f.to.slice(0, 7)) || (f.supplier && f.supplier !== supplier) || (f.product && f.product !== product)) return null;
+      const g = groups[supplier] || { sap: 0, estimated: 0 }, plan = 110 + i * 20;
+      const last = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 0)).toISOString().slice(0, 10);
+      const partial = !!((f.from && f.from > month + '-01') || (f.to && f.to < last));
+      return { month, supplier, product, sap: g.sap, estimated: g.estimated, plan, partial, sapPercent: partial ? null : g.sap / plan * 100, projectedPercent: partial ? null : (g.sap + g.estimated) / plan * 100 };
+    }).filter(Boolean);
+    const kpis = { trucks: rows.length, pending: rows.filter(r => r.status !== 'SAP').length, estimated: rows.filter(r => r.status !== 'SAP').reduce((s, r) => s + r.tonnes, 0), sap: rows.filter(r => r.status === 'SAP').reduce((s, r) => s + r.tonnes, 0) };
+    const plan = monthly.reduce((s, r) => s + r.plan, 0), partial = monthly.some(r => r.partial);
+    return { rows, groups: Object.values(groups), suppliers: names, warnings: [], updatedAt: new Date().toISOString(), kpis, reports: { monthly }, readiness: { complete: true, sap: true, receipts: true, sheets: [] }, sync: { enabled: false }, analytics: { daily: Object.values(daily).sort((a, b) => a.date.localeCompare(b.date)), bySupplier: Object.values(groups).sort((a, b) => b.sap + b.estimated - a.sap - a.estimated), kpis: { coverage: kpis.sap + kpis.estimated, plan: plan || null, sapPercent: plan && !partial ? kpis.sap / plan * 100 : null, gap: plan && !partial ? Math.max(0, plan - kpis.sap - kpis.estimated) : null, suppliers: Object.keys(groups).length, fallbackTrucks: rows.filter(r => r.fallback).length, unplanned: 0 } } };
+  }
+  function filteredRows() {
+    const query = $('search').value.trim().toLocaleUpperCase('es');
+    return result ? result.rows.filter(r => !query || [r.guide || r.id, r.supplier, r.supplierOriginal || ''].some(v => String(v).toLocaleUpperCase('es').includes(query))) : [];
+  }
+  function empty(body, columns, text) {
+    const tr = document.createElement('tr'), td = document.createElement('td');
+    td.colSpan = columns; td.textContent = text; td.className = 'muted text-center py-4'; tr.append(td); body.append(tr);
+  }
+  function table() {
+    const records = filteredRows(), total = Math.max(1, Math.ceil(records.length / size));
+    page = Math.min(page, total - 1); $('rows').replaceChildren();
+    if (!records.length) empty($('rows'), 6, 'No hay ingresos para los filtros seleccionados.');
+    records.slice(page * size, (page + 1) * size).forEach(r => {
+      const tr = document.createElement('tr');
+      [r.guide || r.id, r.date, r.supplier, r.product, number(r.tonnes), r.status === 'SAP' ? 'Contabilizado SAP' : r.fallback ? 'Estimado · 11,5 TS' : 'Estimado · promedio SAP'].forEach((value, i) => {
+        const td = document.createElement('td'); td.textContent = value;
+        if (i === 2 && r.supplierOriginal) td.title = 'Nombre original: ' + r.supplierOriginal;
+        if (i === 4) td.className = 'text-end fw-semibold';
+        if (i === 5) { const span = document.createElement('span'); span.className = 'badge ' + (r.status === 'SAP' ? 'badge-sap' : 'badge-est'); span.textContent = value; td.replaceChildren(span); }
+        tr.append(td);
+      }); $('rows').append(tr);
+    });
+    $('count').textContent = records.length + ' camiones en la tabla · ' + result.rows.length + ' en el período';
+    $('page').textContent = `Página ${page + 1} de ${total}`; $('prev').disabled = page === 0; $('next').disabled = page + 1 >= total;
+  }
+  function monthly(data) {
+    const body = $('monthly'); body.replaceChildren();
+    const records = data.reports ? data.reports.monthly : [];
+    if (!records.length) empty(body, 8, 'No hay ingresos ni plan para el período.');
+    records.forEach(r => {
+      const tr = document.createElement('tr');
+      [r.month, r.supplier, r.product, data.readiness && !data.readiness.sap ? 'No disponible' : number(r.sap), data.readiness && !data.readiness.receipts ? 'No disponible' : number(r.estimated), r.plan === null ? 'Sin plan' : number(r.plan), r.partial ? 'Período parcial' : percent(r.sapPercent), r.partial ? 'Período parcial' : percent(r.projectedPercent)].forEach((value, i) => {
+        const td = document.createElement('td'); td.textContent = value;
+        if (i >= 6 && !r.partial && (i === 6 ? r.sapPercent : r.projectedPercent) !== null) {
+          const span = document.createElement('span'); span.className = 'badge ' + ((i === 6 ? r.sapPercent : r.projectedPercent) >= 100 ? 'badge-sap' : 'badge-est'); span.textContent = value; td.replaceChildren(span);
+        } tr.append(td);
+      }); body.append(tr);
+    });
+  }
+  function draw(data) {
+    charts.forEach(c => c.destroy()); charts.length = 0;
+    if (!window.Chart) return;
+    Chart.defaults.locale = 'es-CL'; Chart.defaults.font.family = 'system-ui, sans-serif'; Chart.defaults.font.size = 10; Chart.defaults.color = '#6a7f70';
+    const opts = { responsive: true, maintainAspectRatio: false, animation: { duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 250 }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 7, padding: 18 } } } };
+    const colors = ['#286448', '#b9d991', '#a7b7ac'];
+    const series = (label, values, color) => ({ label, data: values, backgroundColor: color, borderColor: color, borderRadius: 4 });
+    const add = (id, type, labels, datasets, extra = {}) => charts.push(new Chart($(id), { type, data: { labels, datasets }, options: { ...opts, ...extra } }));
+    const a = data.analytics || { daily: [], bySupplier: data.groups }, daily = a.daily || [], top = (a.bySupplier || data.groups).slice(0, 10);
+    add('timeline', 'bar', daily.map(d => d.date.slice(5)), [series('SAP · TS', daily.map(d => d.sap), colors[0]), series('Estimado · TS', daily.map(d => d.estimated), colors[1])], { scales: { x: { grid: { display: false }, stacked: true }, y: { beginAtZero: true, stacked: true } } });
+    add('states', 'doughnut', ['SAP · TS', 'Estimado · TS'], [{ data: [data.kpis.sap, data.kpis.estimated], backgroundColor: colors.slice(0, 2), borderWidth: 4, borderColor: '#fff', hoverOffset: 4 }], { cutout: '73%' });
+    add('volumes', 'bar', top.map(g => g.supplier), [series('SAP · TS', top.map(g => g.sap), colors[0]), series('Estimado · TS', top.map(g => g.estimated), colors[1])], { indexAxis: 'y', scales: { x: { beginAtZero: true, stacked: true }, y: { stacked: true, grid: { display: false } } } });
+    const months = {};
+    (data.reports ? data.reports.monthly : []).forEach(r => { const m = months[r.month] ||= { sap: 0, estimated: 0, plan: 0 }; m.sap += r.sap; m.estimated += r.estimated; if (r.plan !== null) m.plan += r.plan; });
+    const labels = Object.keys(months).sort();
+    add('planChart', 'bar', labels, [series('Plan cargado · TS', labels.map(m => months[m].plan || null), colors[2]), series('SAP · TS', labels.map(m => months[m].sap), colors[0]), series('Estimado · TS', labels.map(m => months[m].estimated), colors[1])], { scales: { x: { grid: { display: false } }, y: { beginAtZero: true } } });
+  }
+  function pill(id, text, state) {
+    const el = $(id), dot = document.createElement('span'); dot.className = 'dot'; el.replaceChildren(dot, document.createTextNode(text)); el.className = 'status-pill ' + (state || '');
+  }
+  function render(data) {
+    result = data; page = 0;
+    const ready = data.readiness || { complete: true, sap: true, receipts: true, sheets: [] }, a = data.analytics ? data.analytics.kpis : {};
+    for (const k of ['trucks', 'pending', 'estimated', 'sap']) $(k).textContent = number(k === 'sap' && !ready.sap || ['pending','estimated'].includes(k) && !ready.receipts || k === 'trucks' && !ready.sap && !ready.receipts ? null : data.kpis[k]);
+    $('coverage').textContent = number(a.coverage); $('compliance').textContent = number(a.sapPercent); $('gap').textContent = number(a.gap); $('activeSuppliers').textContent = number(a.suppliers);
+    $('planFoot').textContent = a.plan ? 'Plan cargado: ' + number(a.plan) + ' TS' + (a.unplanned ? ' · cobertura parcial del plan' : '') : 'Sin plan mensual cargado';
+    $('fallbackFoot').textContent = (a.fallbackTrucks || 0) + ' camiones usan respaldo de 11,5 TS';
+    const selected = $('supplier').value; $('supplier').replaceChildren(new Option('Todos los proveedores', '')); data.suppliers.forEach(s => $('supplier').add(new Option(s, s))); $('supplier').value = selected;
+    $('updated').textContent = 'Consultado: ' + new Date(data.updatedAt).toLocaleString('es-CL', { timeZone: 'America/Santiago' }) + (!ready.complete ? ' · DATOS PARCIALES / POR REVISAR' : '');
+    $('insight').textContent = !ready.complete ? 'Hay fuentes o datos por revisar. Los valores visibles pueden ser parciales; la sincronización conserva los datos anteriores hasta resolver las alertas.' : !ready.sap ? 'SAP aún no está disponible. Las recepciones usan 11,5 TS por camión; no se calcula cumplimiento SAP.' : !ready.receipts ? 'SAP está disponible; no hay una fuente de recepción disponible para estimar pendientes.' : `${number(data.kpis.sap)} TS contabilizadas y ${number(data.kpis.estimated)} TS estimadas pendientes. ${a.fallbackTrucks || 0} camiones sin promedio SAP usan el respaldo de 11,5 TS.`;
+    pill('receiptStatus', 'Recepciones · ' + (ready.receipts ? 'lectura disponible' : 'sin conexión'), ready.receipts ? '' : 'warn');
+    pill('sapStatus', 'SAP · ' + (ready.sap ? 'lectura disponible' : 'no disponible'), ready.sap ? '' : 'warn');
+    const sync = data.sync || {};
+    pill('syncStatus', demo ? 'Modo demostración' : sync.lastError ? 'Base · revisar última sincronización' : sync.enabled ? 'Base · automática cada 15 min' : 'Base · sincronización manual', sync.lastError ? 'bad' : sync.enabled ? '' : 'warn');
+    $('sources').replaceChildren();
+    (ready.sheets || []).forEach(s => { const div = document.createElement('div'); div.className = 'source-item'; const name = document.createElement('span'), meta = document.createElement('span'); name.textContent = `${s.name} · ${s.kind === 'sap' ? 'SAP' : 'Recepciones'}`; meta.className = 'muted'; meta.textContent = `${s.rows} filas · encabezados en fila ${s.headerRow} · fecha: ${s.mapping ? s.mapping.date : ''}`; div.append(name, meta); $('sources').append(div); });
+    $('diagnostics').textContent = [sync.lastSuccess ? 'Último guardado completo: ' + new Date(sync.lastSuccess).toLocaleString('es-CL') : 'Sin guardado completo registrado.', sync.lastError || '', ...(data.warnings || [])].filter(Boolean).join(' · ');
+    monthly(data); table(); draw(data);
+    if (demo) message('DEMOSTRACIÓN · Proveedores, ingresos y metas ficticios para explorar el dashboard. No hay conexión con tus planillas.', 'info');
+    else if (data.warnings && data.warnings.length) message(data.warnings.slice(0, 6).join(' · '), ready.complete ? 'warning' : 'danger');
+    else message('');
+  }
+  function load() {
+    if (inFlight) return;
+    const f = filters(); if (f.from && f.to && f.from > f.to) { message('La fecha inicial debe ser anterior a la final.'); return; }
+    const current = ++request; busy(true);
+    const success = d => { if (current !== request) return; try { render(d); } catch (e) { message('No se pudo mostrar la respuesta: ' + e.message, 'danger'); } finally { busy(false); } };
+    const failure = e => { if (current !== request) return; busy(false); $('updated').textContent = 'Consulta fallida · los valores anteriores pueden estar desactualizados.'; message(e.message || 'No fue posible consultar las fuentes.', 'danger'); };
+    if (demo) { success(demoData(f)); return; }
+    google.script.run.withSuccessHandler(success).withFailureHandler(failure).getDashboard(f);
+  }
+  function exportCsv() {
+    if (!result) return;
+    const escape = value => { let text = String(value == null ? '' : value); if (/^\s*[=+@-]|^[\t\r]/.test(text)) text = "'" + text; return '"' + text.replace(/"/g, '""') + '"'; };
+    const rows = [['GUIA', 'FECHA', 'PROVEEDOR', 'PRODUCTO', 'TONELADAS_TS', 'ESTADO', 'VALIDACION']].concat(filteredRows().map(r => [r.guide || r.id, r.date, r.supplier, r.product, String(r.tonnes).replace('.', ','), r.status, result.readiness&&result.readiness.complete?'LECTURA_VALIDA':'DATOS_PARCIALES']));
+    const url = URL.createObjectURL(new Blob(['\ufeff' + rows.map(r => r.map(escape).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'astilla-mapal-' + today() + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  const month = today().slice(0, 7); $('from').value = month + '-01'; $('to').value = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 0)).toISOString().slice(0, 10);
+  $('filters').addEventListener('submit', e => { e.preventDefault(); load(); });
+  $('refresh').onclick = load; $('export').onclick = exportCsv;
+  $('search').oninput = () => { page = 0; table(); };
+  $('prev').onclick = () => { page--; table(); }; $('next').onclick = () => { page++; table(); };
+  $('sync').onclick = () => {
+    if (demo || inFlight) return;
+    busy(true);
+    google.script.run.withSuccessHandler(r => { busy(false); load(); }).withFailureHandler(e => { busy(false); message(e.message || 'La sincronización no se completó.', 'danger'); }).syncProcessed();
+  };
+  setInterval(() => { if ($('auto').checked && !document.hidden && !inFlight) load(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && $('auto').checked && !inFlight) load(); });
+  $('mode').textContent = demo ? 'DEMOSTRACIÓN · DATOS FICTICIOS' : 'LECTURA DIRECTA DE FUENTES';
+  load();
 })();
 </script>

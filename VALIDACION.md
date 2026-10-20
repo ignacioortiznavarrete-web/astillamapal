@@ -1,24 +1,37 @@
 # Validación de ASTILLA MAPAL
 
-## Comprobado localmente
+## Resultado local
 
-- `npm ci --ignore-scripts`: instalación reproducible desde lockfile.
-- `npm run vendor`: genera Bootstrap 5.3.3 y Chart.js 4.4.8 incluidos en HTML, conservando avisos de licencia. Sin CDN en tiempo de ejecución.
-- `npm test`: **40 pruebas aprobadas**, ninguna omitida. Reglas de cálculo, proveedor + guía, homologación, plan mensual, períodos parciales, pivot de meses/años y protecciones de escritura.
-- Incluye flujo completo con servicios Google simulados: crear base/encabezados, configurar fuentes/maestro/plan, leer, conciliar, promediar, guardar salidas y repetir. Verifica que las fuentes no cambian, que no se duplican salidas y que nombres pendientes bloquean guardar.
-- `npm run check`: sintaxis de módulos `.gs`, JavaScript cliente y manifiesto.
-- `clasp --version`: 3.1.3.
-- Vista de demostración: HTTP 200 y plantilla completamente incluida.
-- Chromium del sistema con Playwright: KPI, filtros de proveedor/producto, respaldo 11,5 TS, estado vacío, Bootstrap y gráficos cargados; pantalla móvil de 390 px sin desborde horizontal; ningún error JavaScript.
-- Navegador con backend **simulado**: proveedor homologado, comparación de 14 TS SAP + 14 TS estimadas frente a plan de 100 TS, porcentajes 14% y 28%; período parcial suprime porcentajes mensuales. No son datos reales ni llamadas a Google.
-- `git diff --check`: sin errores de whitespace en código propio; se conservan archivos de terceros tal como los distribuye npm, salvo envoltura HTML y eliminación de enlaces de source maps.
+- **66 pruebas automatizadas aprobadas**, ninguna omitida (`npm test`). Servicios Google simulados: no se usan credenciales ni documentos reales.
+- Sintaxis de servidor `.gs`, cliente JavaScript y manifiesto válida (`npm run check`).
+- Dependencias fijadas con lockfile; Bootstrap 5.3.3 y Chart.js 4.4.8 incluidos en HTML, sin CDN en ejecución.
+- Prueba de navegador reproducible (`npm run test:browser`) con Playwright 1.62.1 y Chromium del sistema.
+
+## Casos cubiertos
+
+- Fila de encabezados desplazada, acentos, puntuación, variantes SAP (Fecha de contabilización, Nombre 1, Texto breve de material, Nota de entrega y Cantidad en UM entrada).
+- Prioridad de fecha de contabilización, mapeo explícito y selección por @B sin modificar el documento original. Los encabezados ambiguos no se eligen arbitrariamente.
+- Migración de configuración anterior, retirada/omisión de placeholders y normalización de enlaces completos a IDs. Activaciones/desactivaciones respetadas en consultas normales.
+- Nuevas filas de recepción, edición/reemplazo/eliminación de registros SAP y pestañas mensuales nuevas. Relectura completa, sin acumulación sobre importaciones previas.
+- Homologación, proveedor + guía, promedios por proveedor, respaldo 11,5 TS, duplicados idénticos y contradicciones.
+- Unidades KG rechazadas y hoja problemática sin importación parcial de sus primeras filas.
+- Fuente SAP ausente: estimación provisional y porcentajes SAP no disponibles; fuente ilegible: señalización de datos parciales y bloqueo de guardado de totales.
+- Plan mensual, plan cero/ausente/parcial, proveedor con plan y ningún ingreso, separación de años en pivot de meses y cumplimiento real versus cobertura estimada.
+- Trigger propio único cada 15 minutos para la cuenta instaladora; desactivación conserva triggers ajenos.
+- Flujo con Sheets simuladas: crear base, detectar/reparar fuentes, homologar, leer, calcular y guardar. Repetición sin duplicados ni modificación de originales. Los bloqueos de validación conservan los datos procesados anteriores.
+
+## Navegador
+
+- 8 KPIs y 4 gráficos, filtros por producto/proveedor/período, búsqueda por guía, exportación CSV y estado sin resultados.
+- Pantalla móvil de 390 px sin desborde horizontal; ningún error JavaScript.
+- Con backend simulado que ejecuta los módulos reales del servidor, una edición de Cantidad SAP pasa de 14 a 18 TS y se refleja automáticamente tanto en el KPI SAP como en el promedio usado para pendientes al avanzar el reloj 61 segundos.
+- Desmarcar actualización automática evita la siguiente consulta. No se llamó a Google durante esta prueba.
+- Capturas de demostración se generan en el directorio temporal; todos sus proveedores, ingresos y metas son ficticios.
 
 ## Pendiente en la cuenta Google
 
-- Ejecutar `prepararProyecto` para crear la base independiente y detectar las fuentes. Este desarrollo **no creó archivos remotos**.
-- Autorizar acceso con cuenta lectora de originales; revisar las pestañas y los encabezados detectados y activar solo las filas correctas de FUENTES.
-- Confirmar que SAP tiene una fila por camión/guía y que `Cantidad` está en TS. Cargar equivalencias reales de proveedores y metas mensuales sin inventarlas.
-- Desplegar Apps Script y comparar un período contra los documentos originales. No hay autenticación clasp ni proyecto remoto enlazado en este entorno.
-- No se hicieron escrituras en Google Sheets ni cambios de permisos. La protección e idempotencia se verificaron con hojas simuladas; falta validación real.
+No hay sesión Google autorizada ni proyecto clasp remoto enlazado en este entorno. No se instalaron triggers, no se crearon hojas remotas y no se desplegó Apps Script durante estas pruebas. Los intentos anteriores de exportación HTTP de las hojas recibieron 403 del proxy.
 
-Los intentos de leer ambas hojas por exportación HTTP fueron rechazados por el proxy (403). La interfaz ya no depende de descargas de CDN: se corrigió la ausencia de estilos y gráficos detectada inicialmente.
+Actualizar todos los archivos, ejecutar `activarAutomatico` con la cuenta responsable y publicar una nueva versión de la aplicación. Esa función requiere autorización Google para crear/reusar la base independiente e instalar el trigger. Confirmar en el reporte real que Cantidad está en TS y cada fila representa un camión. La presencia de encabezados por sí sola no demuestra esa semántica.
+
+Si una fecha realmente no existe, un ID no identifica un camión único o las empresas tienen nombres distintos sin maestro, el sistema requiere corregir la configuración/homologación en la base independiente. No inventa equivalencias ni fechas. Ver README.md para el procedimiento.
