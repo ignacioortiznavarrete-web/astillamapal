@@ -1,0 +1,12 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs'),vm=require('node:vm');const context=vm.createContext({});vm.runInContext(fs.readFileSync('src/Domain.gs','utf8'),context);const D=context.Domain;
+const row=(id,supplier='A',extra={})=>({id,supplier,date:'2026-10-20',product:'ASTILLA VERDE',...extra});
+test('cada recepción única es un camión y respaldo 11,5',()=>{const r=D.calculate([row('1'),row('1'),row('2')],[]);assert.equal(r.kpis.trucks,2);assert.equal(r.kpis.estimated,23);assert.equal(r.warnings.length,1);});
+test('promedio SAP por proveedor, conciliación y volúmenes separados',()=>{const r=D.calculate([row('1'),row('3'),row('4','B')],[row('1','A',{tonnes:10}),row('2','A',{tonnes:14})]);assert.equal(r.kpis.sap,24);assert.equal(r.kpis.estimated,23.5);assert.equal(r.kpis.trucks,4);});
+test('solo productos autorizados',()=>{const r=D.calculate([row('1','A',{product:'OTRO'}),row('2','A',{product:'ASTILLA VERDE C/CORT'})],[]);assert.equal(r.kpis.trucks,1);});
+test('duplicados SAP no alteran promedio',()=>{const r=D.calculate([row('2')],[row('1','A',{tonnes:20}),row('1','A',{tonnes:20})]);assert.equal(r.kpis.sap,20);assert.equal(r.kpis.estimated,20);});
+test('promedio considera período y ambos productos, proveedor se filtra después',()=>{const r=D.calculate([row('3')],[row('1','A',{tonnes:100,date:'2026-09-01'}),row('2','A',{tonnes:15,product:'ASTILLA VERDE C/CORT'})],{from:'2026-10-01',product:'ASTILLA VERDE',supplier:'a'});assert.equal(r.kpis.estimated,15);assert.equal(r.kpis.sap,0);});
+test('SAP inválido y recepciones incompletas generan alertas',()=>{const r=D.calculate([row(''),row('2')],[row('1','A',{tonnes:'error'})]);assert.equal(r.kpis.estimated,11.5);assert.equal(r.warnings.length,2);});
+test('conflictos de identidad detienen cálculo',()=>{assert.throws(()=>D.calculate([row('1'),row('1','B')],[]),/contradictorias/);assert.throws(()=>D.calculate([row('1','B')],[row('1','A',{tonnes:12})]),/no coincide/);assert.throws(()=>D.calculate([],[row('1','A',{tonnes:10}),row('1','A',{tonnes:11})]),/contradictorios/);});
+test('decimales chilenos y proveedor normalizado',()=>{assert.equal(D.tonnes('1.234,50'),1234.5);assert.equal(D.key('  Forestál   sur '),'FORESTAL SUR');});
+test('sin datos retorna cero',()=>{assert.equal(D.calculate([],[]).kpis.trucks,0);});
+test('rechaza fechas inexistentes',()=>{const r=D.calculate([row('1','A',{date:'2026-02-30'})],[]);assert.equal(r.kpis.trucks,0);assert.equal(r.warnings.length,1);});

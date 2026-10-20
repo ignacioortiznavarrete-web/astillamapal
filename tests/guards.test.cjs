@@ -1,0 +1,3 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+test('destino fuente bloqueado antes de abrir o escribir hojas',()=>{let calls=0;const c=vm.createContext({SpreadsheetApp:{openById(){calls++;throw Error('no debe abrir');}}});vm.runInContext(fs.readFileSync('src/Repository.gs','utf8'),c);assert.throws(()=>c.Repository.save({storeId:'source',sources:[{id:'source'}]},[]),/prohibida/);assert.equal(calls,0);});
+test('destino obligatorio antes de escribir',()=>{const c=vm.createContext({});vm.runInContext(fs.readFileSync('src/Repository.gs','utf8'),c);assert.throws(()=>c.Repository.save({sources:[]},[]),/Falta/);});
