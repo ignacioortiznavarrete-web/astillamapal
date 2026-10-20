@@ -40,7 +40,7 @@ Node.js 22 o superior. `npm ci`, `npm test`, `npm run check`. Las pruebas son lo
     "id": "REEMPLAZAR_CON_ID_SAP_CONFIRMADO",
     "sheets": ["REEMPLAZAR_PESTANA_SAP"],
     "headerRow": 1,
-    "columns": {"guide":"N° DE GUÍA","date":"FECHA","supplier":"PROVEEDOR","product":"PRODUCTO","tonnes":"TONELADAS"}
+    "columns": {"guide":"N° DE GUÍA","date":"FECHA","supplier":"PROVEEDOR","product":"PRODUCTO","tonnes":"Cantidad"}
   }
 ]
 ```
@@ -96,3 +96,7 @@ Agregar en Propiedades del script `SUPPLIERS_JSON` con una lista de nombres ofic
 La homologación se aplica antes de calcular promedios, agrupar, filtrar y conciliar. El nombre oficial aparece en dashboard y base procesada. El nombre original se conserva en los registros devueltos como `supplierOriginal`. Una misma variante asignada a dos proveedores bloquea la operación. Los proveedores sin homologar se mantienen separados y generan alertas; esto también bloquea guardar procesados hasta revisar el maestro. No se adivinan equivalencias por semejanza de nombres.
 
 El objetivo es comparar ingresos por proveedor con el plan. **La comparación con plan aún no está implementada**: falta conocer su fuente, columnas, período y unidad (toneladas o camiones). No se calcula un porcentaje de cumplimiento sin esos datos. Agrupar por proveedor no convierte recepciones pendientes en contabilizadas: proveedor + guía se conserva como identidad de cada camión.
+
+### Unidad y columna SAP confirmadas
+
+El volumen se expresa en toneladas (TS). El encabezado SAP confirmado es `Cantidad`: configurar `columns.tonnes` como `Cantidad`. Se interpreta en TS, sin conversión de unidades. Los camiones son un conteo auxiliar para estimar recepciones pendientes, que se muestran separadas de las toneladas reales SAP. Falta confirmar archivo/pestaña SAP y fila de encabezados antes de ejecutar la conexión.
