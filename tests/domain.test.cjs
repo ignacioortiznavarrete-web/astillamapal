@@ -10,3 +10,8 @@ test('conflictos de identidad detienen cálculo',()=>{assert.throws(()=>D.calcul
 test('decimales chilenos y proveedor normalizado',()=>{assert.equal(D.tonnes('1.234,50'),1234.5);assert.equal(D.key('  Forestál   sur '),'FORESTAL SUR');});
 test('sin datos retorna cero',()=>{assert.equal(D.calculate([],[]).kpis.trucks,0);});
 test('rechaza fechas inexistentes',()=>{const r=D.calculate([row('1','A',{date:'2026-02-30'})],[]);assert.equal(r.kpis.trucks,0);assert.equal(r.warnings.length,1);});
+test('cruce por proveedor y guía, aunque IDs originales sean distintos',()=>{const r=D.calculate([row('local',' Forestál Sur ',{guide:'0012'})],[row('sap','FORESTAL SUR',{guide:'0012',tonnes:14})]);assert.equal(r.kpis.trucks,1);assert.equal(r.kpis.pending,0);assert.equal(r.kpis.sap,14);});
+test('misma guía de distintos proveedores representa camiones distintos',()=>{const r=D.calculate([row('1','A',{guide:'12'}),row('2','B',{guide:'12'})],[]);assert.equal(r.kpis.trucks,2);assert.equal(r.kpis.estimated,23);});
+test('guía vacía no usa ID alternativo ni concilia accidentalmente',()=>{const r=D.calculate([row('1','A',{guide:' '})],[]);assert.equal(r.kpis.trucks,0);assert.equal(r.warnings.length,1);});
+test('deduplica proveedor y guía en recepciones',()=>{const r=D.calculate([row('1','A',{guide:'12'}),row('2','a',{guide:'12'})],[]);assert.equal(r.kpis.trucks,1);assert.equal(r.warnings.length,1);});
+test('clave compuesta evita colisiones de separadores',()=>{assert.notEqual(D.receptionId('A|B','C'),D.receptionId('A','B|C'));});

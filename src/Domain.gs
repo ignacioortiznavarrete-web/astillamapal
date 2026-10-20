@@ -14,7 +14,16 @@ var Domain = (function () {
     var parsed = new Date(value+'T00:00:00Z');
     return !isNaN(parsed.getTime()) && parsed.toISOString().slice(0,10) === value;
   }
+  function receptionId(supplier, guide) {
+    var supplierKey = key(supplier), guideKey = key(guide);
+    return supplierKey && guideKey ? JSON.stringify([supplierKey, guideKey]) : "";
+  }
   function calculate(receipts, sap, filters) {
+    function identify(row) {
+      return Object.prototype.hasOwnProperty.call(row, "guide") ? Object.assign({}, row, {id:receptionId(row.supplier, row.guide)}) : row;
+    }
+    receipts = receipts.map(identify);
+    sap = sap.map(identify);
     filters = filters || {};
     var warnings = [], seen = {}, booked = {}, averages = {}, pending = [], actual = [];
     function valid(row, kind) {
@@ -66,5 +75,5 @@ var Domain = (function () {
     return {rows:rows, suppliers:Array.from(new Set(all.map(function(r){return r.supplier;}))).sort(), groups:Object.keys(groups).map(function(k){return groups[k];}), warnings:warnings, averages:averages,
       kpis:{trucks:rows.length, pending:rows.filter(function(r){return r.status==='ESTIMADO';}).length, estimated:rows.reduce(function(s,r){return s+(r.status==='ESTIMADO'?r.tonnes:0);},0), sap:rows.reduce(function(s,r){return s+(r.status==='SAP'?r.tonnes:0);},0)}};
   }
-  return {calculate:calculate, key:key, tonnes:tonnes};
+  return {calculate:calculate, key:key, tonnes:tonnes, receptionId:receptionId};
 })();

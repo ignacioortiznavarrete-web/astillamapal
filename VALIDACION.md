@@ -1,7 +1,7 @@
 # Validación de la implementación
 
 - `npm ci --ignore-scripts`: instalación reproducible con lockfile completada.
-- `npm test`: 12 pruebas aprobadas, ninguna omitida. Promedios por proveedor, respaldo 11,5, filtros, productos, deduplicación, conciliación, conflictos, fechas y bloqueo de destino fuente.
+- `npm test`: 17 pruebas aprobadas, ninguna omitida. Promedios por proveedor, respaldo 11,5, filtros, productos, deduplicación, conciliación, conflictos, fechas y bloqueo de destino fuente.
 - `npm run check`: sintaxis de módulos `.gs`, JavaScript cliente y manifiesto válida.
 - `npm run clasp -- --version`: 3.1.3.
 - Servidor de demostración: respuesta HTTP 200 y plantilla con estilos y cliente incluidos, sin etiquetas de inclusión pendientes.

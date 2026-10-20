@@ -22,7 +22,7 @@ var SheetsReader = (function () {
         values.forEach(function(row,i){
           if(row.every(function(v){return v==='';})) return;
           var item={source:name,sourceRow:start+i+1};
-          Object.keys(indices).forEach(function(k){item[k]=k==='date'?date(row[indices[k]],zone):k==='id'?display[i][indices[k]].trim():row[indices[k]];});
+          Object.keys(indices).forEach(function(k){item[k]=k==='date'?date(row[indices[k]],zone):(k==='id'||k==='guide')?display[i][indices[k]].trim():row[indices[k]];});
           output[source.kind].push(item);
         });
       });
