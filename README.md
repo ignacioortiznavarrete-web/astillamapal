@@ -110,7 +110,7 @@ Una fila por combinación mes/proveedor/producto. Los duplicados bloquean el cá
 Implementar → Nueva implementación → Aplicación web. El manifiesto inicia con acceso **solo yo**, ejecutándose como **usuario que accede**. Autorizar y validar antes de ampliar el acceso a personas autorizadas. Cada usuario necesita lectura de las fuentes y escritura en la base si usa Guardar. No habilitar acceso público a datos de proveedores.
 
 - Consultar filtra período, proveedor homologado y producto; no escribe en las fuentes ni en la base.
-- **Guardar base procesada** recalcula todos los períodos configurados. Escribe únicamente en la base independiente. Si hay fuentes ilegibles, conflictos, valores inválidos o nombres sin homologar, actualiza el diagnóstico y bloquea reemplazar los totales anteriores. Los duplicados idénticos se depuran sin impedir el guardado.
+- **Sincronizar base** recalcula únicamente el mes actual de Chile. Escribe únicamente en la base independiente. Si hay fuentes ilegibles, conflictos, valores inválidos o nombres sin homologar dentro del período, actualiza el diagnóstico y bloquea reemplazar los totales anteriores. Los duplicados idénticos se depuran sin impedir el guardado.
 - Cargar plan es opcional para consultar ingresos; sin él, el cumplimiento figura como no disponible.
 - Las salidas son regenerables y no constituyen un registro histórico de auditoría. No editar manualmente hojas de salida: usar `FUENTES`, `PROVEEDORES` y `PLAN_MENSUAL`.
 - Repetir `configurarProyecto` conserva el contenido y no crea otra base. Si una hoja tiene encabezados ajenos, se detiene para conservarla.
@@ -122,8 +122,8 @@ Implementar → Nueva implementación → Aplicación web. El manifiesto inicia 
 3. Identidad de recepción: **proveedor oficial + N° DE GUÍA**. Una misma guía de proveedores distintos representa recepciones distintas. Conservar el mismo formato y ceros iniciales en ambos orígenes. Si una guía cubre varios camiones, este identificador no basta: debe configurarse una identificación por camión antes de usar esos datos.
 4. SAP debe tener una fila por camión/guía con toneladas netas `Cantidad`. No se deben cargar líneas de materiales ni anulaciones como si fueran camiones. Duplicados idénticos se omiten con aviso informativo; contradicciones detienen el cálculo.
 5. Camión ya encontrado en SAP: se muestra solo como SAP. Pendiente: promedio SAP del mismo proveedor × un camión. Sin antecedentes: **11,5 TS/camión**.
-6. Promedio = toneladas SAP / camiones SAP únicos del proveedor, en el período seleccionado, incluyendo ambos productos. El filtro de producto se aplica después del promedio. Al guardar sin filtros, se usa el promedio de todo el período de fuentes configuradas.
-7. La conciliación por guía ocurre antes del filtro temporal. El estado SAP usa su fecha configurada; si se contabilizó fuera del período, no se vuelve a presentar como pendiente dentro de él.
+6. Promedio = toneladas SAP / camiones SAP únicos del proveedor, en el período seleccionado, incluyendo ambos productos. El filtro de producto se aplica después del promedio. Al guardar se usa únicamente el promedio SAP del mes actual de Chile.
+7. El período se selecciona antes de homologar, deduplicar y conciliar. El estado SAP usa su fecha configurada. Las filas SAP fuera del período no participan de la conciliación ni del promedio; una contabilización posterior aparecerá cuando se consulte ese período.
 8. **Cumplimiento SAP** = TS SAP / PLAN_TS × 100. **Cobertura estimada** = (TS SAP + TS estimadas pendientes) / PLAN_TS × 100. Se muestran separados. Sin plan, con plan cero o con un filtro que cubre solo parte del mes, no se calcula porcentaje mensual.
 9. Fechas: celdas fecha de Sheets, `AAAA-MM-DD`, `DD/MM/AAAA`, `DD.MM.AAAA` y marcas horarias compatibles. Cantidades: numéricas o decimales chilenos, por ejemplo `11,5`. Identificadores se leen como texto mostrado.
 
@@ -177,3 +177,11 @@ Para tareas futuras usar el checkout existente; no crear worktrees.
 Ocho KPIs: TS SAP, TS estimadas pendientes, cobertura con estimación, cumplimiento SAP, camiones únicos, camiones pendientes, brecha de cobertura al plan y proveedores activos. Se informa cuántos camiones utilizan respaldo de 11,5 TS.
 
 Cuatro gráficos: evolución diaria de TS, composición SAP/estimado en TS, top 10 proveedores (sin excluir al resto de las tablas) y comparación mensual con plan. Búsqueda por guía/proveedor, filtros por período/producto/proveedor, tablas paginadas y exportación CSV con estado de validación y protección de fórmulas. El período inicial es el mes actual de Chile completo; los porcentajes de meses parciales no se prorratean.
+
+## Exportación limitada al mes actual
+
+**Exportar mes actual** vuelve a consultar el servidor y descarga solo el mes calendario vigente en `America/Santiago`, aunque los filtros de fecha del dashboard apunten a otro período. Se respetan proveedor, producto y búsqueda. El archivo se nombra `astilla-mapal-AAAA-MM.csv`.
+
+La sincronización manual/programada también genera únicamente ese mes en las hojas de salida regenerables. Al cambiar el mes se reemplaza la salida anterior; no se conserva un histórico en esas hojas. Las fuentes originales permanecen intactas. El dashboard puede consultar otros períodos explícitamente, pero el botón de exportación siempre usa el actual.
+
+Se descartan las filas con fechas válidas fuera del período **antes** de validar duplicados y homologaciones; un conflicto histórico no bloquea la salida actual. Las pestañas mensuales identificadas como antiguas se omiten. Las filas sin fecha válida y las contradicciones del mes actual siguen siendo alertas: no se ocultan como si fueran antiguas.

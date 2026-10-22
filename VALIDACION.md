@@ -2,7 +2,7 @@
 
 ## Resultado local
 
-- **70 pruebas automatizadas aprobadas**, ninguna omitida (`npm test`). Servicios Google simulados: no se usan credenciales ni documentos reales.
+- **79 pruebas automatizadas aprobadas**, ninguna omitida (`npm test`). Servicios Google simulados: no se usan credenciales ni documentos reales.
 - Sintaxis de servidor `.gs`, cliente JavaScript y manifiesto válida (`npm run check`).
 - Dependencias fijadas con lockfile; Bootstrap 5.3.3 y Chart.js 4.4.8 incluidos en HTML, sin CDN en ejecución.
 - Prueba de navegador reproducible (`npm run test:browser`) con Playwright 1.62.1 y Chromium del sistema.
@@ -39,3 +39,7 @@ Si una fecha realmente no existe, un ID no identifica un camión único o las em
 ## Instalador local sin copiar archivos
 
 Cuatro pruebas con CLI simulada: respaldo obligatorio previo al push, conservación del contenido anterior y hashes, rechazo de proyecto local distinto y detección de una descarga de verificación diferente. No se ejecutaron login, pull ni push contra la cuenta Google real. Las rutas .gs/.js y saltos de línea se normalizan al comparar, así como el orden de claves del manifiesto JSON. El lanzador Windows no se ejecutó en Windows desde este entorno Linux.
+
+## Salida del mes actual
+
+Pruebas de período: calendario Chile en cambio de mes/año, febrero bisiesto, contradicción BIOCHIPER histórica excluida y actual bloqueada, exportación ignorando rangos históricos solicitados, plan antiguo duplicado excluido, filas sin fecha conservadas como alerta y cambio de mes en salidas sin modificar fuentes. En navegador se consulta enero de 1900 y se comprueba que el CSV contiene las 27 filas ficticias del mes vigente, sin filas históricas.

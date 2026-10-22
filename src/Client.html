@@ -53,9 +53,9 @@
     const plan = monthly.reduce((s, r) => s + r.plan, 0), partial = monthly.some(r => r.partial);
     return { rows, groups: Object.values(groups), suppliers: names, warnings: [], updatedAt: new Date().toISOString(), kpis, reports: { monthly }, readiness: { complete: true, sap: true, receipts: true, sheets: [] }, sync: { enabled: false }, analytics: { daily: Object.values(daily).sort((a, b) => a.date.localeCompare(b.date)), bySupplier: Object.values(groups).sort((a, b) => b.sap + b.estimated - a.sap - a.estimated), kpis: { coverage: kpis.sap + kpis.estimated, plan: plan || null, sapPercent: plan && !partial ? kpis.sap / plan * 100 : null, gap: plan && !partial ? Math.max(0, plan - kpis.sap - kpis.estimated) : null, suppliers: Object.keys(groups).length, fallbackTrucks: rows.filter(r => r.fallback).length, unplanned: 0 } } };
   }
-  function filteredRows() {
+  function filteredRows(data = result) {
     const query = $('search').value.trim().toLocaleUpperCase('es');
-    return result ? result.rows.filter(r => !query || [r.guide || r.id, r.supplier, r.supplierOriginal || ''].some(v => String(v).toLocaleUpperCase('es').includes(query))) : [];
+    return data ? data.rows.filter(r => !query || [r.guide || r.id, r.supplier, r.supplierOriginal || ''].some(v => String(v).toLocaleUpperCase('es').includes(query))) : [];
   }
   function empty(body, columns, text) {
     const tr = document.createElement('tr'), td = document.createElement('td');
@@ -143,12 +143,19 @@
     if (demo) { success(demoData(f)); return; }
     google.script.run.withSuccessHandler(success).withFailureHandler(failure).getDashboard(f);
   }
-  function exportCsv() {
-    if (!result) return;
+  function downloadCsv(data) {
     const escape = value => { let text = String(value == null ? '' : value); if (/^\s*[=+@-]|^[\t\r]/.test(text)) text = "'" + text; return '"' + text.replace(/"/g, '""') + '"'; };
-    const rows = [['GUIA', 'FECHA', 'PROVEEDOR', 'PRODUCTO', 'TONELADAS_TS', 'ESTADO', 'VALIDACION']].concat(filteredRows().map(r => [r.guide || r.id, r.date, r.supplier, r.product, String(r.tonnes).replace('.', ','), r.status, result.readiness&&result.readiness.complete?'LECTURA_VALIDA':'DATOS_PARCIALES']));
+    const rows = [['GUIA', 'FECHA', 'PROVEEDOR', 'PRODUCTO', 'TONELADAS_TS', 'ESTADO', 'VALIDACION']].concat(filteredRows(data).map(r => [r.guide || r.id, r.date, r.supplier, r.product, String(r.tonnes).replace('.', ','), r.status, data.readiness&&data.readiness.complete?'LECTURA_VALIDA':'DATOS_PARCIALES']));
     const url = URL.createObjectURL(new Blob(['\ufeff' + rows.map(r => r.map(escape).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
-    const a = document.createElement('a'); a.href = url; a.download = 'astilla-mapal-' + today() + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const a = document.createElement('a'); a.href = url; a.download = 'astilla-mapal-' + (data.period.month || today().slice(0,7)) + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function exportCsv() {
+    if (!result || inFlight) return;
+    busy(true);
+    const selection = filters();
+    const success = data => { try { downloadCsv(data); message('Exportación del mes ' + data.period.month + ' completada. Se respetan proveedor, producto y búsqueda.', 'success'); } catch(e) { message(e.message,'danger'); } finally { busy(false); } };
+    if (demo) { const month=today().slice(0,7),from=month+'-01',to=new Date(Date.UTC(+month.slice(0,4),+month.slice(5,7),0)).toISOString().slice(0,10); const data=demoData({...selection,from,to});data.period={month,from,to};success(data);return; }
+    google.script.run.withSuccessHandler(success).withFailureHandler(e=>{busy(false);message(e.message||'No se pudo exportar el mes actual.','danger');}).getCurrentMonthExport(selection);
   }
   const month = today().slice(0, 7); $('from').value = month + '-01'; $('to').value = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 0)).toISOString().slice(0, 10);
   $('filters').addEventListener('submit', e => { e.preventDefault(); load(); });

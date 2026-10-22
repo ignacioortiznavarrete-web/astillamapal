@@ -15,10 +15,11 @@ var SheetsReader = (function () {
       try {
         var book=books[source.id]||(books[source.id]=SpreadsheetApp.openById(source.id)),zone=book.getSpreadsheetTimeZone();
         var wildcard=source.sheets.indexOf('*')>=0;
-        var sheets=wildcard?book.getSheets():source.sheets.map(function(name){var s=book.getSheetByName(name);if(!s)diagnostic('error','No existe pestaña '+name+' en '+source.id);return s;}).filter(Boolean);
+        var sheets=wildcard?book.getSheets():source.sheets.map(function(name){if(config.period&&Period.outsideSheet(name,config.period))return null;var s=book.getSheetByName(name);if(!s)diagnostic('error','No existe pestaña '+name+' en '+source.id);return s;}).filter(Boolean);
         if(!wildcard&&source.kind==='receipts')book.getSheets().forEach(function(s){if(monthly(s.getName())&&!sheets.some(function(x){return x.getName()===s.getName();}))sheets.push(s);});
         sheets.forEach(function(sheet){
           var name=sheet.getName(),identity=JSON.stringify([source.id,name]);
+          if(config.period&&Period.outsideSheet(name,config.period))return;
           if(seen[identity])return;
           if((config.disabled||[]).some(function(d){return d.id===source.id&&(d.name===name||d.name==='*');}))return;
           var explicit=!wildcard&&source.sheets.indexOf(name)>=0;
@@ -37,6 +38,7 @@ var SheetsReader = (function () {
               if(Headers.normalize(row[ix.supplier])===Headers.normalize(schema.headers[ix.supplier])&&Headers.normalize(row[ix.product])===Headers.normalize(schema.headers[ix.product])){repeated++;return;}
               var item={source:name,sourceId:source.id,sourceRow:schema.row+i+1};
               Object.keys(ix).forEach(function(k){item[k]=k==='date'?date(row[ix[k]],zone):(k==='id'||k==='guide')?display[i][ix[k]].trim():row[ix[k]];});
+              if(config.period&&Domain.validDate(item.date)&&!Period.contains(item.date,config.period))return;
               if(schema.kind==='sap'&&item.unit && ['T','TO','TON','TONS','TS','TONELADA','TONELADAS','TNE'].indexOf(Domain.key(item.unit))<0 && ['ASTILLA VERDE','ASTILLA VERDE C/CORT'].indexOf(Domain.key(item.product))>=0)throw new Error('Unidad SAP '+item.unit+' no es TS. Corrija/convierta la base SAP independiente antes de cargar.');
               sheetRows.push(item);valid++;
             });
