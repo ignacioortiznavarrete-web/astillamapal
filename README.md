@@ -45,6 +45,7 @@ Crear un proyecto **independiente** en [Google Apps Script](https://script.googl
 | `RESUMEN_MENSUAL` | SAP, estimado, plan y porcentajes por proveedor/producto/mes. |
 | `INGRESOS_POR_MES` | Enero a diciembre **hacia la derecha**, separados por año, proveedor, producto y tipo SAP/ESTIMADO/PLAN. |
 | `PROVEEDORES_PENDIENTES` | Nombres sin homologación para revisar. |
+| `ALERTAS_GUIAS` | Guías pendientes repetidas, cantidad de camiones y filas de origen. |
 | `DIAGNOSTICO` | Problemas de configuración o datos. |
 
 ### FUENTES
@@ -110,7 +111,7 @@ Una fila por combinación mes/proveedor/producto. Los duplicados bloquean el cá
 Implementar → Nueva implementación → Aplicación web. El manifiesto inicia con acceso **solo yo**, ejecutándose como **usuario que accede**. Autorizar y validar antes de ampliar el acceso a personas autorizadas. Cada usuario necesita lectura de las fuentes y escritura en la base si usa Guardar. No habilitar acceso público a datos de proveedores.
 
 - Consultar filtra período, proveedor homologado y producto; no escribe en las fuentes ni en la base.
-- **Sincronizar base** recalcula únicamente el mes actual de Chile. Escribe únicamente en la base independiente. Si hay fuentes ilegibles, conflictos, valores inválidos o nombres sin homologar dentro del período, actualiza el diagnóstico y bloquea reemplazar los totales anteriores. Los duplicados idénticos se depuran sin impedir el guardado.
+- **Sincronizar base** recalcula únicamente el mes actual de Chile. Escribe únicamente en la base independiente. Si hay fuentes ilegibles, conflictos, valores inválidos o nombres sin homologar dentro del período, actualiza el diagnóstico y bloquea reemplazar los totales anteriores. Los duplicados SAP idénticos se depuran; las guías repetidas en filas pendientes se conservan con alerta y permiten guardar.
 - Cargar plan es opcional para consultar ingresos; sin él, el cumplimiento figura como no disponible.
 - Las salidas son regenerables y no constituyen un registro histórico de auditoría. No editar manualmente hojas de salida: usar `FUENTES`, `PROVEEDORES` y `PLAN_MENSUAL`.
 - Repetir `configurarProyecto` conserva el contenido y no crea otra base. Si una hoja tiene encabezados ajenos, se detiene para conservarla.
@@ -119,7 +120,7 @@ Implementar → Nueva implementación → Aplicación web. El manifiesto inicia 
 
 1. Cada fila válida de recepción representa un camión. Solo se incluyen los dos productos autorizados.
 2. Se homologa el proveedor **antes** de promediar, agrupar y cruzar.
-3. Identidad de recepción: **proveedor oficial + N° DE GUÍA**. Una misma guía de proveedores distintos representa recepciones distintas. Conservar el mismo formato y ceros iniciales en ambos orígenes. Si una guía cubre varios camiones, este identificador no basta: debe configurarse una identificación por camión antes de usar esos datos.
+3. Cruce con SAP: **proveedor oficial + N° DE GUÍA**, después de homologar nombres. Conservar el mismo formato y ceros iniciales en ambos orígenes. Cada fila pendiente conserva un ID propio por archivo/pestaña/fila: si una guía se repite en distintas filas, cada una cuenta como camión y queda señalada como guía repetida. La misma fila física leída dos veces no se suma dos veces.
 4. SAP debe tener una fila por camión/guía con toneladas netas `Cantidad`. No se deben cargar líneas de materiales ni anulaciones como si fueran camiones. Duplicados idénticos se omiten con aviso informativo; contradicciones detienen el cálculo.
 5. Camión ya encontrado en SAP: se muestra solo como SAP. Pendiente: promedio SAP del mismo proveedor × un camión. Sin antecedentes: **11,5 TS/camión**.
 6. Promedio = toneladas SAP / camiones SAP únicos del proveedor, en el período seleccionado, incluyendo ambos productos. El filtro de producto se aplica después del promedio. Al guardar se usa únicamente el promedio SAP del mes actual de Chile.
@@ -166,7 +167,7 @@ Para tareas futuras usar el checkout existente; no crear worktrees.
 
 - **Pantalla:** consulta fuentes cada 60 segundos mientras esté visible y la casilla esté activada. No superpone peticiones. Se puede actualizar manualmente o pausar la consulta automática.
 - **Base independiente:** `activarAutomatico` instala un trigger cada 15 minutos. La cuenta que lo instala debe conservar acceso lector a las fuentes y editor a la base. `desactivarAutomatico` elimina únicamente sus triggers de ASTILLA MAPAL, sin tocar triggers ajenos.
-- Se releen las filas actuales: incorporan nuevas recepciones, modificaciones, eliminaciones y reemplazos del reporte SAP. No se acumulan filas sobre una importación anterior. Las fuentes deben mantener el mismo contrato de un camión por fila y una guía única por proveedor.
+- Se releen las filas actuales: incorporan nuevas recepciones, modificaciones, eliminaciones y reemplazos del reporte SAP. No se acumulan filas sobre una importación anterior. Cada fila pendiente representa un camión; la guía puede repetirse y genera una alerta sin excluir las filas. SAP conserva su validación estricta para no duplicar toneladas contabilizadas.
 - No se registra como cero una fuente SAP ilegible. El dashboard muestra estado de conexión, datos parciales y último guardado/error. Si SAP todavía no está configurado y solo hay recepciones, se permiten estimaciones de 11,5 TS sin mostrar cumplimiento SAP; las columnas SAP de la base se dejan vacías.
 - Las unidades SAP detectadas deben ser toneladas. `KG` se rechaza; no se cambia silenciosamente la escala ni se usa peso bruto. No se asume la fecha de hoy cuando falta una fecha.
 - Un bloqueo de validación conserva las salidas anteriores. Un fallo técnico durante escrituras puede dejar una base parcialmente actualizada porque Google Sheets no ofrece transacciones entre hojas; revisar el último estado/error y repetir la sincronización. El dashboard calcula desde fuentes, no desde un snapshot incompleto.
@@ -182,6 +183,16 @@ Cuatro gráficos: evolución diaria de TS, composición SAP/estimado en TS, top 
 
 **Exportar mes actual** vuelve a consultar el servidor y descarga solo el mes calendario vigente en `America/Santiago`, aunque los filtros de fecha del dashboard apunten a otro período. Se respetan proveedor, producto y búsqueda. El archivo se nombra `astilla-mapal-AAAA-MM.csv`.
 
-La sincronización manual/programada también genera únicamente ese mes en las hojas de salida regenerables. Al cambiar el mes se reemplaza la salida anterior; no se conserva un histórico en esas hojas. Las fuentes originales permanecen intactas. El dashboard puede consultar otros períodos explícitamente, pero el botón de exportación siempre usa el actual.
+La sincronización manual/programada también genera únicamente ese mes en las hojas de salida regenerables. Al cambiar el mes se reemplaza la salida anterior; no se conserva un histórico en esas hojas. Las fuentes originales permanecen intactas. El dashboard puede consultar SAP de otros períodos explícitamente, pero el complemento de recepciones y el botón de exportación siempre se limitan al mes actual.
 
-Se descartan las filas con fechas válidas fuera del período **antes** de validar duplicados y homologaciones; un conflicto histórico no bloquea la salida actual. Las pestañas mensuales identificadas como antiguas se omiten. Las filas sin fecha válida y las contradicciones del mes actual siguen siendo alertas: no se ocultan como si fueran antiguas.
+Se descartan las filas con fechas válidas fuera del período **antes** de validar duplicados y homologaciones; un conflicto histórico no bloquea la salida actual. Las pestañas mensuales identificadas como antiguas se omiten. Las filas sin fecha válida siguen bloqueando el guardado. Las guías pendientes repetidas del mes actual se incluyen con alerta; no se detienen por diferencias de fecha o producto entre esas filas.
+
+## Complemento del mes actual: guías no registradas en SAP
+
+El único archivo utilizado como complemento de recepciones es `1jtF5B1DUQdx6eCWuFIp7k86suCY8XeBJ6_RoNJ3Bg-A`, indicado por el usuario. Se leen sus pestañas compatibles y solo las filas del mes actual en la salida. Las pestañas de recepción de otros archivos no se suman como complemento. SAP mantiene las fuentes configuradas para ingresos reales.
+
+Si proveedor homologado + guía ya existe en SAP del período, ninguna fila de esa combinación se añade como estimado. Si SAP indica otro producto, se usa el dato SAP y se emite aviso de discrepancia; no se agrega un volumen estimado adicional.
+
+Si la guía no existe en SAP y aparece varias veces en el archivo de recepciones, **se conservan todas sus filas**, incluso con fechas o productos distintos, y se aplica el promedio SAP del proveedor o 11,5 TS a cada una. Esto puede aumentar la estimación frente a una depuración de duplicados: la inclusión es intencional y las filas quedan para revisión.
+
+Las alertas aparecen en el dashboard, en cada fila repetida de la tabla, en las columnas `ALERTA`, `HOJA_ORIGEN`, `FILA_ORIGEN` del CSV y en `ALERTAS_GUIAS` de la base independiente. No bloquean sincronizar. Cuando la guía llega a SAP, todas sus filas pendientes dejan de estimarse y su alerta pendiente desaparece al recalcular. Repetir sincronización no acumula ingresos. Nunca se modifican las fuentes.

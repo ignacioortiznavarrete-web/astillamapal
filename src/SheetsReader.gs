@@ -26,7 +26,8 @@ var SheetsReader = (function () {
           if(!sheet.getLastRow()||!sheet.getLastColumn()){if(explicit)diagnostic('error',name+': hoja vacía, no se encontraron encabezados.');return;}
           try {
             var top=sheet.getRange(1,1,Math.min(50,sheet.getLastRow()),Math.min(200,sheet.getLastColumn())).getDisplayValues();
-            var schema=Headers.resolve(top,source);
+            var schema=Headers.resolve(top,source.id===config.receiptSourceId?Object.assign({},source,{kind:'receipts'}):source);
+            if(schema.kind==='receipts'&&config.receiptSourceId&&source.id!==config.receiptSourceId){diagnostic('info',name+': omitida como complemento; se usa exclusivamente el archivo de recepciones indicado.');return;}
             if(source.acceptKinds&&source.acceptKinds.indexOf(schema.kind)<0)return;
             var count=sheet.getLastRow()-schema.row,valid=0,repeated=0,width=Math.max.apply(null,Object.keys(schema.indices).map(function(k){return schema.indices[k]+1;}));
             var sheetRows=[];

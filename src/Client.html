@@ -71,7 +71,7 @@
         const td = document.createElement('td'); td.textContent = value;
         if (i === 2 && r.supplierOriginal) td.title = 'Nombre original: ' + r.supplierOriginal;
         if (i === 4) td.className = 'text-end fw-semibold';
-        if (i === 5) { const span = document.createElement('span'); span.className = 'badge ' + (r.status === 'SAP' ? 'badge-sap' : 'badge-est'); span.textContent = value; td.replaceChildren(span); }
+        if (i === 5) { const span = document.createElement('span'); span.className = 'badge ' + (r.status === 'SAP' ? 'badge-sap' : 'badge-est'); span.textContent = value; td.replaceChildren(span); if(r.duplicateGuide){const alert=document.createElement('span');alert.className='badge badge-alert ms-1';alert.textContent='Guía repetida · '+r.guideOccurrences;alert.title=r.guideAlert;td.append(alert);} }
         tr.append(td);
       }); $('rows').append(tr);
     });
@@ -145,7 +145,7 @@
   }
   function downloadCsv(data) {
     const escape = value => { let text = String(value == null ? '' : value); if (/^\s*[=+@-]|^[\t\r]/.test(text)) text = "'" + text; return '"' + text.replace(/"/g, '""') + '"'; };
-    const rows = [['GUIA', 'FECHA', 'PROVEEDOR', 'PRODUCTO', 'TONELADAS_TS', 'ESTADO', 'VALIDACION']].concat(filteredRows(data).map(r => [r.guide || r.id, r.date, r.supplier, r.product, String(r.tonnes).replace('.', ','), r.status, data.readiness&&data.readiness.complete?'LECTURA_VALIDA':'DATOS_PARCIALES']));
+    const rows = [['GUIA', 'FECHA', 'PROVEEDOR', 'PRODUCTO', 'TONELADAS_TS', 'ESTADO', 'VALIDACION', 'ALERTA', 'HOJA_ORIGEN', 'FILA_ORIGEN']].concat(filteredRows(data).map(r => [r.guide || r.id, r.date, r.supplier, r.product, String(r.tonnes).replace('.', ','), r.status, data.readiness&&data.readiness.complete?(r.duplicateGuide?'CON_ALERTA_GUIA':'LECTURA_VALIDA'):'DATOS_PARCIALES', r.guideAlert || '', r.source || '', r.sourceRow || '']));
     const url = URL.createObjectURL(new Blob(['\ufeff' + rows.map(r => r.map(escape).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a'); a.href = url; a.download = 'astilla-mapal-' + (data.period.month || today().slice(0,7)) + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }

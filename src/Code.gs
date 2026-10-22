@@ -4,12 +4,15 @@ function result_(config,filters){
   filters=filters||{};
   if(!filters.from&&!filters.to)filters=Object.assign({},filters,Period.current());
   var scopedConfig=Object.assign({},config,{period:filters});
-  var data=Period.select(SheetsReader.read(scopedConfig),filters),result=Suppliers.calculate(data,config.suppliers,filters);
+  var data=Period.select(SheetsReader.read(scopedConfig),filters),current=Period.current();
+  data.receipts=data.receipts.filter(function(row){return !Domain.validDate(row.date)||Period.contains(row.date,current);});
+  var result=Suppliers.calculate(data,config.suppliers,filters);
   var plans=config.plans.filter(function(plan){return Period.keepPlan(plan,filters);});
   result.period={from:filters.from||null,to:filters.to||null};
   result.readiness={complete:data.complete&&(data.availability.sap||data.availability.receipts),sap:data.availability.sap,receipts:data.availability.receipts,sheets:data.sheets};
-  var dataWarnings=result.warnings.filter(function(w){return !/^(SAP|Recepción): duplicado omitido /.test(w);});
+  var dataWarnings=result.warnings.filter(function(w){return !/^(SAP|Recepción): duplicado omitido /.test(w) && !/^Recepción: guía repetida conservada /.test(w) && !/^Recepción: guía ya en SAP /.test(w);});
   if(dataWarnings.length)result.readiness.complete=false;
+  result.readiness.hasAlerts=(result.guideAlerts||[]).length>0;
   result.reports=Reporting.build(result.rows,plans,config.suppliers,filters);
   if(result.reports.warnings.length)result.readiness.complete=false;
   result.reports.monthly.forEach(function(r){if(!result.readiness.sap||!result.readiness.complete)r.sapPercent=null;if(!result.readiness.sap||!result.readiness.receipts||!result.readiness.complete)r.projectedPercent=null;});

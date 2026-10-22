@@ -9,6 +9,7 @@ var Config = (function () {
     var sources=configured.filter(function(s){if(placeholder(s.id)||!s.id){warnings.push('Se ignoró una fuente de ejemplo sin ID real.');return false;}return true;});
     sources=sources.map(function(s){
       var source=Object.assign({},s,{id:spreadsheetId(s.id),kind:Domain.key(s.kind).toLowerCase(),columns:s.columns||{}});
+      if(source.id===Setup.sourceIds[1])source.kind='receipts';
       if(!source.sheets||!source.sheets.length||source.sheets.some(placeholder))source.sheets=['*'];
       if(['receipts','sap','auto'].indexOf(source.kind)<0)throw new Error('TIPO debe ser receipts o sap.');
       if(source.headerRow!==undefined&&(!Number.isInteger(source.headerRow)||source.headerRow<1))source.headerRow=undefined;
@@ -17,10 +18,12 @@ var Config = (function () {
     });
     var identities=Object.create(null);
     sources.forEach(function(s){s.sheets.forEach(function(name){var key=JSON.stringify([s.id,name]);if(identities[key]&&identities[key]!==s.kind)throw new Error('La misma pestaña está configurada como receipts y sap: '+name);identities[key]=s.kind;});});
+    sources=sources.filter(function(s){if(s.kind==='receipts'&&s.id!==Setup.sourceIds[1]){warnings.push('Fuente de recepción externa omitida: el complemento usa solo el archivo indicado.');return false;}return true;});
     // No manual setup needed for known sources. Disabled real tabs remain disabled.
     if(!sources.length)Setup.sourceIds.forEach(function(id){sources.push({id:id,kind:'auto',sheets:['*'],columns:{}});});
+    if(!sources.some(function(s){return s.id===Setup.sourceIds[1];}))sources.push({id:Setup.sourceIds[1],kind:'receipts',sheets:['*'],columns:{}});
     var suppliers=JSON.parse(p.getProperty('SUPPLIERS_JSON')||'[]').concat(workspace.suppliers);Suppliers.build(suppliers);
-    return {sources:sources,storeId:storeId,suppliers:suppliers,plans:workspace.plans,disabled:(workspace.disabled||[]).map(function(d){return {id:spreadsheetId(d.id),name:d.name};}),configWarnings:warnings};
+    return {receiptSourceId:Setup.sourceIds[1],sources:sources,storeId:storeId,suppliers:suppliers,plans:workspace.plans,disabled:(workspace.disabled||[]).map(function(d){return {id:spreadsheetId(d.id),name:d.name};}),configWarnings:warnings};
   }
   return {read:read,spreadsheetId:spreadsheetId,placeholder:placeholder};
 })();

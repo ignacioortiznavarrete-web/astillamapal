@@ -2,7 +2,7 @@
 
 ## Resultado local
 
-- **79 pruebas automatizadas aprobadas**, ninguna omitida (`npm test`). Servicios Google simulados: no se usan credenciales ni documentos reales.
+- **89 pruebas automatizadas aprobadas**, ninguna omitida (`npm test`). Servicios Google simulados: no se usan credenciales ni documentos reales.
 - Sintaxis de servidor `.gs`, cliente JavaScript y manifiesto válida (`npm run check`).
 - Dependencias fijadas con lockfile; Bootstrap 5.3.3 y Chart.js 4.4.8 incluidos en HTML, sin CDN en ejecución.
 - Prueba de navegador reproducible (`npm run test:browser`) con Playwright 1.62.1 y Chromium del sistema.
@@ -42,4 +42,12 @@ Cuatro pruebas con CLI simulada: respaldo obligatorio previo al push, conservaci
 
 ## Salida del mes actual
 
-Pruebas de período: calendario Chile en cambio de mes/año, febrero bisiesto, contradicción BIOCHIPER histórica excluida y actual bloqueada, exportación ignorando rangos históricos solicitados, plan antiguo duplicado excluido, filas sin fecha conservadas como alerta y cambio de mes en salidas sin modificar fuentes. En navegador se consulta enero de 1900 y se comprueba que el CSV contiene las 27 filas ficticias del mes vigente, sin filas históricas.
+Pruebas de período: calendario Chile en cambio de mes/año, febrero bisiesto, repetición BIOCHIPER histórica excluida y actual conservada con alerta, exportación ignorando rangos históricos solicitados, plan antiguo duplicado excluido, filas sin fecha conservadas como alerta y cambio de mes en salidas sin modificar fuentes. En navegador se consulta enero de 1900 y se comprueba que el CSV contiene las 27 filas ficticias del mes vigente, sin filas históricas.
+
+## Complemento y guías repetidas
+
+Diez casos adicionales: solo archivo de recepción indicado, cruce después de homologar, conservación de varias filas de una guía ausente en SAP, ubicación exacta de alertas, promedio/11,5 por fila, múltiples productos por guía, no doble lectura de una fila física, sincronización idempotente, y retirada de todos los estimados/alertas cuando llega la guía a SAP. SAP prevalece con aviso si el producto difiere. Las pruebas previas de depuración de guías de recepción se actualizaron a la regla explícita de conservar filas repetidas.
+
+En navegador, backend simulado conserva dos filas de guía 1, muestra 2 camiones pendientes y 36 TS con promedio SAP 18, presenta dos distintivos de guía repetida y exporta el texto de alerta y columnas de origen. No se accedió a los documentos reales de Google.
+
+Consultar SAP histórico explícitamente no incorpora recepciones estimadas históricas: el complemento siempre se limita al mes actual.

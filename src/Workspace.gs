@@ -27,6 +27,7 @@ var Workspace = (function () {
   }
   function diagnostics(config,result){
     var book=SpreadsheetApp.openById(config.storeId);
+    replace(book,'ALERTAS_GUIAS',(result.guideAlerts||[]).map(function(a){return [result.period&&result.period.from?result.period.from.slice(0,7):'',a.supplier,a.guide,a.count,a.locations.map(function(l){return l.sourceId+' / '+l.sheet+' / fila '+(l.row||'?');}).join('; '),a.message];}));
     replace(book,'PROVEEDORES_PENDIENTES',(result.unmappedSuppliers||[]).map(function(s){return [s];}));
     replace(book,'DIAGNOSTICO',result.warnings.map(function(w){return [new Date().toISOString(),'ADVERTENCIA',w];}));
   }
