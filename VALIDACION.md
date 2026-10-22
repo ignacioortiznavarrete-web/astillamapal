@@ -2,7 +2,7 @@
 
 ## Resultado local
 
-- **66 pruebas automatizadas aprobadas**, ninguna omitida (`npm test`). Servicios Google simulados: no se usan credenciales ni documentos reales.
+- **70 pruebas automatizadas aprobadas**, ninguna omitida (`npm test`). Servicios Google simulados: no se usan credenciales ni documentos reales.
 - Sintaxis de servidor `.gs`, cliente JavaScript y manifiesto válida (`npm run check`).
 - Dependencias fijadas con lockfile; Bootstrap 5.3.3 y Chart.js 4.4.8 incluidos en HTML, sin CDN en ejecución.
 - Prueba de navegador reproducible (`npm run test:browser`) con Playwright 1.62.1 y Chromium del sistema.
@@ -35,3 +35,7 @@ No hay sesión Google autorizada ni proyecto clasp remoto enlazado en este entor
 Actualizar todos los archivos, ejecutar `activarAutomatico` con la cuenta responsable y publicar una nueva versión de la aplicación. Esa función requiere autorización Google para crear/reusar la base independiente e instalar el trigger. Confirmar en el reporte real que Cantidad está en TS y cada fila representa un camión. La presencia de encabezados por sí sola no demuestra esa semántica.
 
 Si una fecha realmente no existe, un ID no identifica un camión único o las empresas tienen nombres distintos sin maestro, el sistema requiere corregir la configuración/homologación en la base independiente. No inventa equivalencias ni fechas. Ver README.md para el procedimiento.
+
+## Instalador local sin copiar archivos
+
+Cuatro pruebas con CLI simulada: respaldo obligatorio previo al push, conservación del contenido anterior y hashes, rechazo de proyecto local distinto y detección de una descarga de verificación diferente. No se ejecutaron login, pull ni push contra la cuenta Google real. Las rutas .gs/.js y saltos de línea se normalizan al comparar, así como el orden de claves del manifiesto JSON. El lanzador Windows no se ejecutó en Windows desde este entorno Linux.

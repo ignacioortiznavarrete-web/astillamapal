@@ -2,6 +2,20 @@
 
 Aplicación web Google Apps Script para Compras de Suministro: toneladas SAP, recepciones estimadas, homologación de proveedores y comparación contra plan mensual. Bootstrap 5 y Chart.js están incluidos en los archivos HTML: no depende de un CDN.
 
+## Instalar sin copiar ni pegar código
+
+1. [Descargar ZIP del proyecto](https://github.com/ignacioortiznavarrete-web/astillamapal/archive/refs/heads/main.zip) y **extraerlo** antes de ejecutarlo.
+2. Windows: doble clic en **`INSTALAR_WINDOWS.cmd`**. Mac: **`INSTALAR_MAC.command`**.
+3. Autorizar con la cuenta de Google que puede editar el proyecto ASTILLA MAPAL.
+
+El instalador está vinculado al proyecto `1FXTFYvkWOe04nofW_2yzT4jj2eAWKAJSpWb3yaBP-Q_2Ei0r4fcFIaVb` indicado por el usuario. Instala las dependencias fijadas, usa un perfil de clasp llamado `astilla-mapal`, descarga una copia del código remoto en `local-backups/`, verifica que existe el respaldo y sube los archivos. Una segunda descarga compara el resultado contra el código local. Si no puede respaldar, no sube. Las credenciales se gestionan mediante clasp en la computadora del usuario; no se incluyen en Git ni se copian al respaldo.
+
+Requiere Node.js 22+. En Windows intentará instalar Node.js LTS desde la fuente oficial de winget si falta; después se debe volver a abrir el instalador. Si winget no está disponible, abre la página oficial de Node.js. Si Google informa que falta Apps Script API, activarla en https://script.google.com/home/usersettings y volver a ejecutar el instalador.
+
+**Al finalizar se abre Apps Script:** seleccionar `activarAutomatico` y pulsar **Ejecutar**; después **Implementar → Administrar implementaciones → Editar → Nueva versión → Implementar**. No hay que copiar ningún archivo. Esas acciones y la autorización de Google requieren interacción del usuario en su cuenta; el instalador no publica automáticamente ni cambia permisos.
+
+El respaldo conserva el código anterior y sus hashes; no es una copia de las hojas ni de propiedades/credenciales. Subir código no ejecuta funciones ni modifica propiedades. La actualización reemplaza el código remoto por esta versión; el respaldo se obtiene y verifica antes de hacerlo. Una verificación fallida después del push no implica que el código remoto se haya revertido: se indica el estado y la ubicación del respaldo.
+
 ## Actualizar una instalación existente
 
 1. Actualizar **todos** los archivos de `src/` en el proyecto Apps Script, incluidos los nuevos `Headers.gs`, `Analytics.gs`, `Automation.gs` y el manifiesto `appsscript.json`. Con clasp: `git pull` y `npm run clasp -- push`. No borrar propiedades ni hojas existentes.
